@@ -1,0 +1,173 @@
+/* 사이드바 가림막 (Curtain) */
+.sidebar-curtain {
+    position: absolute;
+    inset: 0;
+    background: var(--panel);
+    z-index: 1000;
+    transform-origin: bottom;
+    transition: transform 0.4s cubic-bezier(0.1, 1, 0.1, 1);
+}
+.sidebar-curtain.wipe {
+    transform: scaleY(0);
+}
+
+/* 로그 창 중앙 배경 UI (Indicators) */
+#log-bg-ui {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1;
+    user-select: none;
+}
+
+/* 턴 카운터: 자간 및 레이아웃 최적화 */
+.bg-turn-text {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: -5px; /* 자연스러운 자간 */
+    font-family: 'Pretendard-Bold';
+    font-size: 160px;
+    color: rgba(255, 255, 255, 0);
+    height: 160px;
+    overflow: hidden;
+    transition: color 1s ease;
+    z-index: 5;
+}
+
+.digit-container {
+    height: 160px;
+    width: 110px; /* 너비를 넉넉히 주어 잘림 방지 */
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.digit-wrapper {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.digit-wrapper span {
+    display: block;
+    height: 160px;
+    line-height: 160px;
+    text-align: center;
+    width: 100%;
+}
+
+.bg-ui-svg {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    fill: none;
+    user-select: none;
+    overflow: visible !important;
+}
+
+/* 데코레이션 텍스트 */
+.decor-text {
+    font-family: 'Pretendard-Bold';
+    font-size: 13px;
+    fill: rgba(255, 255, 255, 0.12);
+    stroke: rgba(255, 255, 255, 0.05);
+    stroke-width: 0.3;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+#svg-decor-text-group {
+    transform-origin: center;
+}
+
+/* 무한 회전 링 스타일 */
+.rotating-ring-text {
+    font-family: 'Pretendard-Regular';
+    font-size: 6px;
+    fill: rgba(255, 255, 255, 0.04);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+#svg-rotating-ring {
+    transform-origin: center;
+    animation: rotate-ring-rev 120s linear infinite; /* 속도 절반, 반대 방향 */
+}
+
+@keyframes rotate-ring-rev {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+/* 인디케이터 */
+#svg-first-striker-group, #svg-current-turn-group {
+    opacity: 0;
+    transform-origin: center;
+}
+
+.first-striker-path {
+    stroke: rgba(255, 255, 255, 0.3);
+    stroke-width: 3;
+}
+
+.current-turn-path {
+    stroke: #ffd700;
+    stroke-width: 6;
+}
+
+/* 버튼 영역 가림막 */
+#action-curtain {
+    position: absolute;
+    inset: 0;
+    background: var(--panel);
+    z-index: 1200;
+    pointer-events: none;
+    clip-path: polygon(50% -150%, -200% 200%, 300% 200%);
+    transition: clip-path 1.0s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#action-curtain-border {
+    position: absolute;
+    inset: 0;
+    background: #ffffff;
+    z-index: 1199;
+    pointer-events: none;
+    clip-path: polygon(50% -150%, -200% 200%, 300% 200%);
+    transition: clip-path 1.0s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#action-curtain.reveal-p1 { clip-path: polygon(50% -150%, 305% 200%, 305% 200%); }
+#action-curtain-border.reveal-p1 { clip-path: polygon(50% -150%, 300% 200%, 300% 200%); }
+#action-curtain.reveal-p2 { clip-path: polygon(50% -150%, -205% 200%, -205% 200%); }
+#action-curtain-border.reveal-p2 { clip-path: polygon(50% -150%, -200% 200%, -200% 200%); }
+#action-curtain.cover { clip-path: polygon(50% -150%, -200% 200%, 300% 200%); }
+#action-curtain-border.cover { clip-path: polygon(50% -150%, -205% 200%, 305% 200%); }
+
+/* 선택 리플 효과 */
+#action-ripple {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1100;
+    transform: translate(-50%, -50%);
+    transition: width 0.7s ease-out, height 0.7s ease-out;
+    border: 10px solid #ffffff;
+    backdrop-filter: grayscale(1);
+    background: transparent;
+    opacity: 0;
+}
+#action-ripple.active {
+    width: 300vw;
+    height: 300vw;
+    opacity: 1;
+}

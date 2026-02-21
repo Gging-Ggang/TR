@@ -28,7 +28,7 @@ class CharacterB(BaseCharacter):
             if skill["current_cd"] > 0:
                 return {"type": "log", "message": f"{self.name}의 공격은 아직 사용할 수 없습니다."}
             
-            damage = roll(skill["damage"])
+            damage = self.roll_dice(skill["damage"])
             skill["current_cd"] = skill["cooldown"]
             
             # 공격 시 콤보 수치 상승 (통계용)

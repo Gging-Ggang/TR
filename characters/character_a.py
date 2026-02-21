@@ -15,7 +15,7 @@ class CharacterA(BaseCharacter):
 
     def act(self, action_name: str = None) -> dict:
         if action_name == "일반공격":
-            damage = roll("2d6")
+            damage = self.roll_dice("2d6")
             return {"type": "attack", "damage": damage, "message": f"{self.name}의 일반적인 공격!"}
 
         if action_name is None:
@@ -32,7 +32,7 @@ class CharacterA(BaseCharacter):
             if skill["current_cd"] > 0:
                 return {"type": "log", "message": f"{self.name}의 공격은 아직 사용할 수 없습니다."}
             
-            damage = roll(skill["damage"])
+            damage = self.roll_dice(skill["damage"])
             skill["current_cd"] = skill["cooldown"]
             
             # 공격 시 분노 수치 상승 (통계용)

@@ -76,9 +76,9 @@ class CharacterSolis(BaseCharacter):
 
         if action_name == "일반공격":
             self.gain_salui(1)
-            dmg = roll("1d10")
+            dmg = self.roll_dice("1d10")
             if self.deceptive_bonus:
-                extra = roll("2d6")
+                extra = self.roll_dice("2d6")
                 dmg += extra
                 print(f"  - [속임수 연계] 추가 피해 +{extra} 적용")
                 self.deceptive_bonus = False
@@ -95,7 +95,7 @@ class CharacterSolis(BaseCharacter):
         elif action_name == "속임수 공격":
             skill = self.skills["속임수 공격"]
             skill["current_cd"] = skill["cooldown"]
-            dmg = roll("2d6") + 4
+            dmg = self.roll_dice("2d6") + 4
             if is_critical: dmg = int(dmg * 1.5)
             self.gain_salui(2)
             self.deceptive_bonus = True
@@ -104,14 +104,14 @@ class CharacterSolis(BaseCharacter):
         elif action_name == "비열한 기습":
             skill = self.skills["비열한 기습"]
             skill["current_cd"] = skill["cooldown"]
-            dmg = roll("2d6")
+            dmg = self.roll_dice("2d6")
             if is_critical: dmg = int(dmg * 1.5)
             result = {"type": "attack", "damage": dmg, "dispel": True, "message": f"{self.name}의 비열한 기습! 상대의 강화 효과를 걷어냅니다."}
 
         elif action_name == "몽환삼단":
             skill = self.skills["몽환삼단"]
             skill["current_cd"] = skill["cooldown"]
-            h1, h2, h3 = roll("2d3")+3, roll("2d3")+3, roll("2d3")+3
+            h1, h2, h3 = self.roll_dice("2d3")+3, self.roll_dice("2d3")+3, self.roll_dice("2d3")+3
             total = h1 + h2 + h3
             if is_critical: total = int(total * 1.5)
             result = {"type": "attack", "damage": total, "silence": 2, "message": f"{self.name}의 몽환삼단! 3연속 공격과 함께 침묵을 부여합니다."}

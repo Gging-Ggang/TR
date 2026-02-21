@@ -98,8 +98,9 @@ class CharacterCookie(BaseCharacter):
                     self.cancel_casting()
         
         old_hp = self.health
+        actual_dealt = 0
         if damage > 0:
-            super().take_damage(damage, damage_type, attacker)
+            actual_dealt = super().take_damage(damage, damage_type, attacker)
         
         if self.health < old_hp:
             if not self.is_casting:
@@ -113,11 +114,21 @@ class CharacterCookie(BaseCharacter):
             "패시브 보호막": self.current_passive_shield, "마력 각성 보호막": self.ma_shield,
             "역화 보호막": self.meteor_shield
         })
+        return actual_dealt
 
     def get_passive_log(self) -> str:
         return f"{self.name}의 [도화선] 화염:{self.flame}, 도화선:{self.fuse}"
 
     def act(self, action_name: str = None) -> dict:
+        def cookie_roll(count, sides):
+            total = 0
+            for _ in range(count):
+                val = random.randint(1, sides)
+                if self.has_buff("무기 파괴"):
+                    val = max(1, val - 2)
+                total += val
+            return total
+
         if action_name == "역화 폭발" and self.is_casting and self.casting_completed:
             # [지시사항] 행동 전 패시브 재발동
             print(f"  - [역화 폭발] 영창 완료! 행동 전 패시브가 재활성화됩니다.")
@@ -135,9 +146,7 @@ class CharacterCookie(BaseCharacter):
             return {"type": "attack", "damage": normal_dmg, "damage_type": "일반 피해", "fixed_damage": fixed_dmg, "message": msg}
 
         if action_name == "일반공격":
-            rolls = [random.randint(1, 6) for _ in range(self.flame)]
-            dmg = sum(rolls)
-            print(f"  - [주사위] {self.flame}d6 결과: {rolls} = {dmg}")
+            dmg = cookie_roll(self.flame, 6)
             return {"type": "attack", "damage": dmg, "message": f"{self.name}의 기본적인 마법 화살 공격!"}
 
         if action_name in ["defense", "방어"]:
@@ -148,9 +157,7 @@ class CharacterCookie(BaseCharacter):
 
         if action_name == "하이 파이쟈":
             skill = self.skills[action_name]
-            rolls = [random.randint(1, self.flame) for _ in range(self.fuse)]
-            dmg = sum(rolls)
-            print(f"  - [주사위] {self.fuse}d{self.flame} 결과: {rolls} = {dmg}")
+            dmg = cookie_roll(self.fuse, self.flame)
             self.fuse //= 2
             if self.fuse < 5: self.fuse = 5
             self.stats_values["도화선"] = self.fuse
@@ -164,6 +171,7 @@ class CharacterCookie(BaseCharacter):
             print(f"  - [연사] {self.fuse}발의 불덩이 발사! (각 1d3-1)")
             for i in range(self.fuse):
                 v = random.randint(1, 3) - 1
+                if self.has_buff("무기 파괴"): v = max(0, v - 2) # 불덩이는 최소 0 유지
                 total_dmg += v
                 log_msg = f"    > {i+1}회차: [{v}] 데미지"
                 if v == 0: gained += 1; log_msg += " (도화선 충전!)"

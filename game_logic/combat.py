@@ -4,6 +4,7 @@ class Combat:
     def __init__(self, player1, player2, verbose=True):
         self.players = [player1, player2]
         self.current_player_idx = random.randint(0, 1)
+        self.first_striker_idx = self.current_player_idx # 선공 정보 저장
         self.turn_count = 1
         self.verbose = verbose
         
@@ -21,7 +22,8 @@ class Combat:
 
     def switch_player(self):
         self.current_player_idx = 1 - self.current_player_idx
-        if self.current_player_idx == 0:
+        # 선공 플레이어의 차례가 다시 돌아올 때 턴 카운트 증가
+        if self.current_player_idx == self.first_striker_idx:
             self.turn_count += 1
             
     def get_status(self) -> str:
@@ -58,8 +60,13 @@ class Combat:
                 damage = action_result.get('damage', 0)
                 dmg_type = action_result.get('damage_type', '일반 피해')
                 print(f"  - {action_result['message']}")
-                opponent.take_damage(damage, damage_type=dmg_type, attacker=actor)
-                print(f"  - 결과: {opponent.name}에게 {damage}의 {dmg_type}를 입혔습니다.")
+                actual_dealt = opponent.take_damage(damage, damage_type=dmg_type, attacker=actor)
+                print(f"  - 결과: {opponent.name}에게 {actual_dealt}의 {dmg_type}를 입혔습니다.")
+                
+                if 'fixed_damage' in action_result:
+                    f_dmg = action_result['fixed_damage']
+                    actual_f_dmg = opponent.take_damage(f_dmg, damage_type='고정 피해', attacker=actor)
+                    print(f"  - 결과: {opponent.name}에게 {actual_f_dmg}의 고정 피해를 추가로 입혔습니다.")
             elif 'message' in action_result:
                 print(f"  - {action_result['message']}")
             return {'success': True, 'damage': damage}
@@ -117,20 +124,41 @@ class Combat:
                 print(f"  - [몽환삼단] {opponent.name}에게 {duration}턴간 침묵을 부여합니다.")
                 opponent.add_buff("침묵", "[해로운 효과]", duration)
 
-            opponent.take_damage(damage, damage_type=dmg_type, attacker=actor)
-            print(f"  - 결과: {opponent.name}에게 {damage}의 {dmg_type}를 입혔습니다.")
+            # [무장 파괴 부여] (페르 스킬)
+            if 'weapon_break' in action_result:
+                duration = action_result['weapon_break']
+                print(f"  - [무장 파괴] {opponent.name}에게 {duration}턴간 무장 파괴를 부여합니다.")
+                opponent.add_buff("무기 파괴", "[해로운 효과]", duration)
+
+            # [모든 효과 제거] (페르 궁극기)
+            if 'dispel_all' in action_result:
+                print(f"  - [황천길] 모든 버프와 디버프가 제거됩니다!")
+                actor.buffs = []
+                opponent.buffs = []
+
+            # 실제 입힌 피해량 측정 (흡혈용)
+            actual_dealt = opponent.take_damage(damage, damage_type=dmg_type, attacker=actor)
+            print(f"  - 결과: {opponent.name}에게 {actual_dealt}의 {dmg_type}를 입혔습니다.")
+
+            # [흡혈 효과 처리] 실제 입힌 피해 기준
+            lifesteal_rate = action_result.get('lifesteal', 0)
+            if lifesteal_rate > 0:
+                heal_amt = int(actual_dealt * lifesteal_rate)
+                if heal_amt > 0:
+                    actor.health = min(actor.max_health, actor.health + heal_amt)
+                    print(f"  - [흡혈] {actor.name}가 실제 입힌 피해의 {int(lifesteal_rate*100)}%인 {heal_amt}만큼 회복합니다.")
             
             # [살의 10스택: 상대 최대 생명력 10% 고정 피해]
             if action_result.get("special_fixed_dmg") == -1:
-                f_dmg = int(opponent.max_health * 0.1) # 최대 체력 10%
+                f_dmg = int(opponent.max_health * 0.1)
                 print(f"  - [살의 폭발] {opponent.name}의 최대 생명력 10%인 {f_dmg}의 고정 피해를 입힙니다!")
-                opponent.take_damage(f_dmg, damage_type='고정 피해', attacker=actor)
-                print(f"  - 결과: {opponent.name}에게 {f_dmg}의 고정 피해를 추가로 입혔습니다.")
+                actual_f_dmg = opponent.take_damage(f_dmg, damage_type='고정 피해', attacker=actor)
+                print(f"  - 결과: {opponent.name}에게 {actual_f_dmg}의 고정 피해를 추가로 입혔습니다.")
 
             if 'fixed_damage' in action_result:
                 f_dmg = action_result['fixed_damage']
-                opponent.take_damage(f_dmg, damage_type='고정 피해', attacker=actor)
-                print(f"  - 결과: {opponent.name}에게 {f_dmg}의 고정 피해를 추가로 입혔습니다.")
+                actual_f_dmg = opponent.take_damage(f_dmg, damage_type='고정 피해', attacker=actor)
+                print(f"  - 결과: {opponent.name}에게 {actual_f_dmg}의 고정 피해를 추가로 입혔습니다.")
         else:
             if 'message' in action_result:
                 print(f"  - {action_result['message']}")

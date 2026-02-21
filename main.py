@@ -8,7 +8,7 @@ from characters.character_a import CharacterA
 from characters.character_b import CharacterB
 from characters.character_cookie import CharacterCookie
 from characters.character_solis import CharacterSolis
-from characters.character_amor import CharacterAmor
+from characters.character_per import CharacterPer
 from game_logic.combat import Combat
 
 def get_stats(data):
@@ -22,6 +22,7 @@ def get_char(name):
     if name == "Cookie": return CharacterCookie(name=name)
     if name == "Solis": return CharacterSolis(name=name)
     if name == "Amor": return CharacterAmor(name=name)
+    if name == "Per": return CharacterPer(name=name)
     if name == "A": return CharacterA(name=name)
     if name == "B": return CharacterB(name=name)
     return CharacterA(name=name)

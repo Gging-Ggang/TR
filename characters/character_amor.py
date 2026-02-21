@@ -48,10 +48,12 @@ class CharacterAmor(BaseCharacter):
                 self.health = min(self.max_health, self.health + 4)
                 self.tenacity_shield_active = False
 
-        super().take_damage(actual_damage, damage_type, attacker)
+        actual_dealt = super().take_damage(actual_damage, damage_type, attacker)
 
         if not self.is_dark and self.persona_accumulated_dmg >= 44:
             self.enter_darkness()
+            
+        return actual_dealt
 
     def enter_darkness(self):
         print(f"  - [페르소나] 고통이 극에 달해 내면의 어둠이 깨어납니다! 모든 스킬 초기화")
@@ -93,9 +95,7 @@ class CharacterAmor(BaseCharacter):
 
     def act(self, action_name: str = None) -> dict:
         if action_name == "일반공격":
-            r1, r2 = random.randint(1, 6), random.randint(1, 6)
-            dmg = r1 + r2
-            print(f"  - [주사위] 2d6 결과: [{r1}, {r2}] = {dmg}")
+            dmg = self.roll_dice("2d6")
             return {"type": "attack", "damage": dmg, "message": f"{self.name}의 묵직한 공격!"}
         
         if action_name in ["defense", "방어"]:
@@ -106,9 +106,8 @@ class CharacterAmor(BaseCharacter):
             
         if action_name == "자활_집념":
             skill = self.skills[action_name]
-            r_val = random.randint(1, 10)
+            r_val = self.roll_dice("1d10")
             damage = r_val + 5
-            print(f"  - [주사위] 1d10+5 결과: ([{r_val}] + 5) = {damage}")
             if not self.is_dark:
                 s_gain = damage // 2
                 self.shield += s_gain

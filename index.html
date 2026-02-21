@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Battle!</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <link rel="stylesheet" href="style_animations.css">
+    <link rel="stylesheet" href="style_selection.css">
     <style>
         @font-face { font-family: 'Pretendard-Bold'; src: url('fonts/Pretendard-ExtraBold.woff2') format('woff2'); font-weight: 800; }
         @font-face { font-family: 'Pretendard-SemiBold'; src: url('fonts/Pretendard-SemiBold.woff2') format('woff2'); font-weight: 600; }
@@ -18,8 +20,9 @@
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard-Regular', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
         
         #game-container { flex: 1; display: grid; grid-template-columns: 340px 1fr 320px; gap: 4px; background: var(--border); overflow: hidden; }
-        .side-panel { background: var(--panel); display: flex; flex-direction: column; padding: 25px; overflow-y: auto; -ms-overflow-style: none; scrollbar-width: none; }
+        .side-panel { background: var(--panel); display: flex; flex-direction: column; padding: 25px; overflow-y: auto; -ms-overflow-style: none; scrollbar-width: none; position: relative; }
         .side-panel::-webkit-scrollbar { display: none; }
+        
         .center-panel { background: var(--terminal-bg); display: flex; flex-direction: column; border-left: 1px solid var(--border); border-right: 1px solid var(--border); overflow: hidden; position: relative; }
 
         .char-header { border-bottom: 2px solid var(--accent); padding-bottom: 12px; margin-bottom: 20px; }
@@ -30,32 +33,12 @@
         .hp-numeric { font-family: 'Pretendard-Bold'; font-size: 14px; color: #ffffff; margin-bottom: 4px; display: block; }
         .hp-bar-container { width: 100%; height: 20px; background: #2a2a2a; border-radius: 4px; overflow: hidden; position: relative; border: 1px solid #444; }
         .hp-bar { height: 100%; background: #ffffff; transition: width 0.3s; }
-        .hp-bar-defense {
-            background: #ffffff !important; /* 체력바 색상 원래대로(흰색) */
-            box-shadow: none !important; /* 글로우 효과 제거 */
-        }
         
-        .hp-bar-container.defense-active {
-            overflow: visible !important;
-            border: 2px solid #00e5ff !important; /* 체력바 테두리 하늘색 추가 */
-        }
-
+        .hp-bar-defense { background: #ffffff !important; box-shadow: none !important; }
+        .hp-bar-container.defense-active { overflow: visible !important; border: 2px solid #00e5ff !important; }
         .hp-bar-container.defense-active::after {
-            content: '🛡️'; /* 속이 채워진 방패 이모지 */
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 40px;
-            color: #ffffff;
-            /* 방패 아이콘 테두리 효과 (하늘색) */
-            text-shadow: 
-                -1.5px -1.5px 0 #00e5ff,  
-                 1.5px -1.5px 0 #00e5ff,
-                -1.5px  1.5px 0 #00e5ff,
-                 1.5px  1.5px 0 #00e5ff;
-            z-index: 100;
-            pointer-events: none;
+            content: '🛡️'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; color: #ffffff;
+            text-shadow: -1.5px -1.5px 0 #00e5ff, 1.5px -1.5px 0 #00e5ff, -1.5px 1.5px 0 #00e5ff, 1.5px 1.5px 0 #00e5ff; z-index: 100; pointer-events: none;
         }
         
         .shield-line-container { width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; margin-top: 4px; display: flex; }
@@ -73,31 +56,28 @@
         .skill-desc-item { font-family: 'Pretendard-Regular'; margin-bottom: 25px; font-size: 14px; line-height: 1.5; color: #bbb; }
         .skill-title { color: var(--accent); margin-bottom: 8px; display: block; }
 
-        #terminal-wrapper { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
-        #terminal { flex: 1; padding: 30px; overflow-y: auto; font-family: 'Pretendard-Regular', monospace; font-size: 14px; color: #00e5ff; line-height: 1.8; background: #1a1a1b; -ms-overflow-style: none; scrollbar-width: none; }
-        #terminal::-webkit-scrollbar { display: none; }
-
-        .turn-indicator-light { position: absolute; top: 0; bottom: 0; width: 30px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 5; }
-        .light-p1 { left: 0; background: linear-gradient(to right, rgba(0, 255, 255, 0.6), transparent); }
-        .light-p2 { right: 0; background: linear-gradient(to left, rgba(0, 255, 255, 0.6), transparent); }
+        .turn-indicator-light { position: absolute; top: 0; bottom: 0; width: 15px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 5; }
+        .light-p1 { left: 0; background: linear-gradient(to right, rgba(255, 215, 0, 0.4), transparent); }
+        .light-p2 { right: 0; background: linear-gradient(to left, rgba(255, 215, 0, 0.4), transparent); }
         .active-turn { opacity: 1; }
 
+        #terminal-wrapper { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        #terminal { flex: 1; padding: 30px; overflow-y: auto; font-family: 'Pretendard-Regular', monospace; font-size: 14px; color: #00e5ff; line-height: 1.8; background: transparent; -ms-overflow-style: none; scrollbar-width: none; position: relative; z-index: 2; }
         .log-entry { margin-bottom: 10px; }
         .dice-val { color: var(--red); }
         .turn-divider { font-family: 'Pretendard-Bold'; color: var(--gold); border-bottom: 1px dashed #444; padding: 25px 0 10px 0; font-size: 18px; margin-bottom: 20px; }
 
-        #action-wrapper { flex-shrink: 0; position: relative; }
-        #action-hint { position: absolute; top: -45px; left: 0; right: 0; text-align: center; color: #fff; font-size: 18px; opacity: 0; transition: opacity 0.3s; pointer-events: none; font-family: 'Pretendard-SemiBold'; letter-spacing: 1px; }
+        #action-wrapper { flex-shrink: 0; position: relative; overflow: hidden; height: 260px; }
+        #action-hint { position: absolute; bottom: 270px; left: 50%; transform: translateX(-50%); text-align: center; color: #fff; font-size: 18px; opacity: 0; transition: opacity 0.3s; pointer-events: none; font-family: 'Pretendard-SemiBold'; letter-spacing: 1px; z-index: 2500; }
         #action-hint.show { opacity: 1; }
 
-        #action-bar { height: 260px; background: var(--panel); border-top: 2px solid var(--border); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 30px 25px; align-content: start; }
+        #action-bar { height: 100%; background: var(--panel); border-top: 2px solid var(--border); display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 30px 25px; align-content: start; }
         .action-btn { position: relative; height: 80px; background: #000; border: 3px solid rgba(var(--btn-rgb), 1); border-radius: 8px; cursor: pointer; overflow: hidden; isolation: isolate; }
         .btn-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Pretendard-Bold'; font-size: 22px; color: rgb(var(--btn-rgb)); mix-blend-mode: difference; z-index: 20; pointer-events: none; white-space: nowrap; }
         .cd-overlay-unit { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 0; opacity: 0.3; z-index: 10; pointer-events: none; }
         .gauge-fill { height: 100%; width: var(--gauge-width); background: #fff; flex-shrink: 0; transition: width 0.3s; }
         .num-huge { font-family: 'Pretendard-Bold'; font-size: 110px; line-height: 80px; font-weight: 900; color: #fff; margin-left: -12px; letter-spacing: -8px; display: flex; align-items: center; height: 100%; white-space: nowrap; transform: translateY(1px); }
         
-        /* 영창 전용 스타일 */
         .casting-ui-container { position: absolute; inset: 0; display: flex; align-items: center; z-index: 10; pointer-events: none; background: rgba(255,255,255,0.03); }
         .cast-gauge-track { flex: 1; height: 100%; position: relative; overflow: hidden; }
         .cast-gauge-fill { height: 100%; width: var(--gauge-width); background: #fff; opacity: 0.25; transition: width 0.3s; }
@@ -109,61 +89,19 @@
 
         .action-btn:hover:not(:disabled) { background: rgba(var(--btn-rgb), 0.1); }
         .action-btn:disabled { cursor: not-allowed; }
-        .ultimate-cookie { 
-            border-color: #ff6600; 
-            position: relative;
-            transition: all 0.3s;
-            overflow: hidden;
-        }
+        .ultimate-cookie { border-color: #ff6600; position: relative; transition: all 0.3s; overflow: hidden; }
         .ultimate-cookie::before {
-            content: 'BACKFIRE';
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Pretendard-Bold';
-            font-size: 50px; /* 원래 크기로 복구 */
-            font-weight: 900;
-            background: linear-gradient(to top, 
-                rgba(255, 69, 0, 1) 0%, 
-                rgba(255, 69, 0, 1) var(--fill-percent, 0%), 
-                rgba(255, 69, 0, 0.1) var(--fill-percent, 0%), 
-                rgba(255, 69, 0, 0.1) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            z-index: 1;
-            pointer-events: none;
-            letter-spacing: -2px;
-            white-space: nowrap;
-            transform: scale(1.45, 2.4); /* 가로 1.45배, 세로 2.4배 */
-            transform-origin: center;
-            transition: all 0.4s ease;
+            content: 'BACKFIRE'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Pretendard-Bold'; font-size: 50px; font-weight: 900;
+            background: linear-gradient(to top, rgba(255, 69, 0, 1) 0%, rgba(255, 69, 0, 1) var(--fill-percent, 0%), rgba(255, 69, 0, 0.1) var(--fill-percent, 0%), rgba(255, 69, 0, 0.1) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; z-index: 1; pointer-events: none; letter-spacing: -2px; white-space: nowrap; transform: scale(1.45, 2.4); transform-origin: center; transition: all 0.4s ease;
         }
-        .ultimate-cookie::after { display: none; } /* 기존 clip-path 방식 폐기 */
-        
-        .ultimate-cookie .btn-text {
-            color: rgba(255, 255, 255, 0.1) !important; /* 비활성 시 아주 연하게 */
-            mix-blend-mode: normal !important;
-            text-shadow: none;
-            z-index: 20;
-            transition: all 0.4s ease;
-        }
-        .ultimate-cookie.intensity-3 .btn-text {
-            color: #ffffff !important; /* 발동 가능 시 진하게 */
-            text-shadow: 0 0 15px rgba(255, 69, 0, 1), 0 0 5px rgba(0,0,0,1);
-            transform: scale(1.05);
-        }
-        .ultimate-cookie.intensity-3::before {
-            background: linear-gradient(to top, #ffffff 0%, #ffffff 100%); /* 가득 찼을 때 흰색 발광 */
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 10px rgba(255, 69, 0, 0.8));
-        }
+        .ultimate-cookie::after { display: none; }
+        .ultimate-cookie .btn-text { color: rgba(255, 255, 255, 0.1) !important; mix-blend-mode: normal !important; text-shadow: none; z-index: 20; transition: all 0.4s ease; }
+        .ultimate-cookie.intensity-3 .btn-text { color: #ffffff !important; text-shadow: 0 0 15px rgba(255, 69, 0, 1), 0 0 5px rgba(0,0,0,1); transform: scale(1.05); }
+        .ultimate-cookie.intensity-3::before { background: linear-gradient(to top, #ffffff 0%, #ffffff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(255, 69, 0, 0.8)); }
         .ultimate-cookie.intensity-1 { box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); }
         .ultimate-cookie.intensity-2 { box-shadow: 0 0 30px rgba(255, 69, 0, 0.7); }
         .ultimate-cookie.intensity-3 { box-shadow: 0 0 50px rgba(255, 69, 0, 1); border-color: #fff; }
-        .ultimate-cookie.intensity-3::after { color: rgba(255, 102, 0, 0.8); }
 
         .ultimate-cookie.intensity-1::after, .ultimate-cookie.intensity-2::after, .ultimate-cookie.intensity-3::after {
             content: ''; position: absolute; inset: 0; background: linear-gradient(to top, transparent, rgba(255, 102, 0, 0.2), rgba(255, 215, 0, 0.1)); z-index: 5; pointer-events: none;
@@ -175,36 +113,118 @@
         @keyframes ultimate-flame-pulse { from { opacity: 0.8; } to { opacity: 1; } }
         @keyframes ultimate-burn { 0% { transform: translateY(100%) scaleY(1); opacity: 0; } 50% { opacity: 0.5; } 100% { transform: translateY(-100%) scaleY(1.5); opacity: 0; } }
 
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .select-box { background: #1a1a1a; padding: 45px; border-radius: 15px; border: 1px solid #333; text-align: center; width: 550px; }
+        #overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: transparent; 
+            z-index: 3000; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        .select-box { 
+            background: rgba(15, 25, 35, 0.95); /* 은은한 푸른 색조 */
+            padding: 45px; 
+            border-radius: 15px; 
+            border: 1px solid #333;
+            text-align: center; 
+            width: 550px; 
+        }
         .select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 35px 0; }
         select { font-family: 'Pretendard-Regular'; width: 100%; padding: 14px; background: #000; color: #fff; border: 1px solid #444; border-radius: 8px; font-size: 15px; }
         .start-btn { font-family: 'Pretendard-Bold'; padding: 18px 50px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-size: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="overlay"><div id="loading-txt">데이터 동기화 중...</div><div id="setup-ui" class="select-box" style="display: none;"><h1 style="color: var(--accent); margin-bottom: 20px; font-family: 'Pretendard-Bold';">Battle!</h1><div class="select-row"><div><label style="color: #666; font-size: 13px;">PLAYER 1</label><select id="p1-choice"><option value="Cookie">쿠키</option><option value="Solis">솔리스</option><option value="Amor">아모르</option></select></div><div><label style="color: #666; font-size: 13px;">PLAYER 2</label><select id="p2-choice"><option value="Solis">솔리스</option><option value="Cookie">쿠키</option><option value="Amor">아모르</option></select></div></div><button class="start-btn" onclick="startGame()">BATTLE START</button></div></div>
+    <div id="overlay"><div id="loading-txt">데이터 동기화 중...</div><div id="setup-ui" class="select-box" style="display: none;"><h1 style="color: var(--accent); margin-bottom: 20px; font-family: 'Pretendard-Bold';">Battle!</h1><div class="select-row"><div><label style="color: #666; font-size: 13px;">PLAYER 1</label><select id="p1-choice"><option value="Cookie">쿠키</option><option value="Solis">솔리스</option><option value="Amor">아모르</option><option value="Per">페르</option></select></div><div><label style="color: #666; font-size: 13px;">PLAYER 2</label><select id="p2-choice"><option value="Solis">솔리스</option><option value="Cookie">쿠키</option><option value="Amor">아모르</option><option value="Per">페르</option></select></div></div><button class="start-btn" onclick="startGame()">BATTLE START</button></div></div>
     <div id="game-container">
         <aside id="panel-p1" class="side-panel">
+            <div id="curtain-p1" class="sidebar-curtain"></div>
             <div class="char-header"><div id="p1-name" class="char-name">-</div><div id="p1-class" class="char-class">-</div></div>
             <div class="hp-section"><span id="p1-hp-numeric" class="hp-numeric">0 / 0</span><div class="hp-bar-container"><div id="p1-hp-bar" class="hp-bar"></div></div><div class="shield-line-container"><div id="p1-burning-sh-bar" class="burning-sh-line"></div><div id="p1-passive-sh-bar" class="passive-sh-line"></div><div id="p1-magic-sh-bar" class="magic-sh-line"></div><div id="p1-sh-bar" class="shield-line"></div></div><div id="p1-sh-num" style="font-size: 10px; color: #87ceeb; text-align: right; margin-top: 2px;">SH 0</div></div>
             <div id="p1-stats" class="status-grid"></div><div id="p1-skills" class="skill-list"></div>
         </aside>
         <main class="center-panel">
-            <div id="terminal-wrapper"><div id="turn-light-p1" class="turn-indicator-light light-p1"></div><div id="turn-light-p2" class="turn-indicator-light light-p2"></div><div id="terminal"></div></div>
-            <div id="action-wrapper"><div id="action-hint">행동을 선택하세요</div><div id="action-bar"></div></div>
+            <div id="terminal-wrapper">
+                <div id="terminal-header" style="height: 40px; padding: 0 30px; display: flex; align-items: center; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); z-index: 10;">
+                    <span id="battle-log-title" style="font-family: 'Pretendard-Bold'; font-size: 13px; color: #666; letter-spacing: 1px; opacity: 0; transform: scale(0.9); transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);">BATTLE LOG</span>
+                </div>
+                <div id="turn-light-p1" class="turn-indicator-light light-p1"></div>
+                <div id="turn-light-p2" class="turn-indicator-light light-p2"></div>
+                <div id="log-bg-ui">
+                    <div id="bg-turn-display" class="bg-turn-text">
+                        <div class="digit-container">
+                            <div id="digit-tens" class="digit-wrapper">
+                                <span>0</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span>
+                            </div>
+                        </div>
+                        <div class="digit-container">
+                            <div id="digit-units" class="digit-wrapper">
+                                <span>0</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <svg class="bg-ui-svg" viewBox="0 0 200 200">
+                        <defs>
+                            <!-- 턴 상단 경로 (r=54로 축소) -->
+                            <path id="path-turn-top" d="M 46,100 A 54,54 0 0,1 154,100" />
+                            <!-- 무한 회전 링을 위한 원 경로 (r=71로 축소) -->
+                            <path id="path-ring" d="M 100,29 A 71,71 0 1,1 100,171 A 71,71 0 1,1 100,29" />
+                        </defs>
+                        <!-- 등차수열 기반 가장 작은 보조 원 (r=77) -->
+                        <circle id="svg-helper-circle" cx="100" cy="100" r="77" stroke="rgba(255, 255, 255, 0.02)" stroke-width="1" fill="rgba(255, 255, 255, 0.01)" style="opacity: 0; transform: scale(0.8); transform-origin: center; transition: all 1.5s cubic-bezier(0.22, 1, 0.36, 1);" />
+                        
+                        <!-- 무한 회전 링 -->
+                        <g id="svg-rotating-ring" style="opacity: 0; transition: opacity 2s ease;">
+                            <text class="rotating-ring-text">
+                                <textPath href="#path-ring">
+                                    TURN COUNTER • MAX 99 • TURN COUNTER • MAX 99 • TURN COUNTER • MAX 99 • TURN COUNTER • MAX 99 • TURN COUNTER • MAX 99 • 
+                                </textPath>
+                            </text>
+                        </g>
+
+                        <!-- 데코레이션 텍스트 그룹 -->
+                        <g id="svg-decor-text-group" style="opacity: 0; transform: scale(0.95); transform-origin: center; transition: all 1.2s cubic-bezier(0.22, 1, 0.36, 1);">
+                            <text class="decor-text" style="font-size: 16px;" dominant-baseline="central">
+                                <textPath href="#path-turn-top" startOffset="50%" text-anchor="middle">TURN</textPath>
+                            </text>
+                        </g>
+
+                        <!-- 선공 인디케이터 (r=86) -->
+                        <g id="svg-first-striker-group"><path class="first-striker-path" d="M 39.2 39.2 A 86 86 0 0 1 160.8 39.2" /></g>
+                        <!-- 현재 차례 인디케이터 (r=95) -->
+                        <g id="svg-current-turn-group"><path class="current-turn-path" d="M 32.8 32.8 A 95 95 0 0 1 167.2 32.8" /></g>
+                    </svg>
+                </div>
+                <div id="terminal"></div>
+            </div>
+            <div id="action-wrapper">
+                <div id="action-hint">행동을 선택하세요</div>
+                <div id="action-ripple"><div class="ripple-outer"></div><div class="ripple-inner"></div></div>
+                <div id="action-curtain-border"></div>
+                <div id="action-curtain"></div>
+                <div id="action-bar"></div>
+            </div>
         </main>
         <aside id="panel-p2" class="side-panel">
+            <div id="curtain-p2" class="sidebar-curtain"></div>
             <div class="char-header"><div id="p2-name" class="char-name">-</div><div id="p2-class" class="char-class">-</div></div>
             <div class="hp-section"><span id="p2-hp-numeric" class="hp-numeric">0 / 0</span><div class="hp-bar-container"><div id="p2-hp-bar" class="hp-bar"></div></div><div class="shield-line-container"><div id="p2-burning-sh-bar" class="burning-sh-line"></div><div id="p2-passive-sh-bar" class="passive-sh-line"></div><div id="p2-magic-sh-bar" class="magic-sh-line"></div><div id="p2-sh-bar" class="shield-line"></div></div><div id="p2-sh-num" style="font-size: 10px; color: #87ceeb; text-align: right; margin-top: 2px;">SH 0</div></div>
             <div id="p2-stats" class="status-grid"></div><div id="p2-skills" class="skill-list"></div>
         </aside>
     </div>
+    <script src="logic_animations.js"></script>
+    <script src="logic_selection.js"></script>
     <script>
-        const UI_FILE_MAP = { "Cookie": "ui_data/cookie.json", "Solis": "ui_data/solis.json", "Amor": "ui_data/amor.json" };
+        const UI_FILE_MAP = { "Cookie": "ui_data/cookie.json", "Solis": "ui_data/solis.json", "Amor": "ui_data/amor.json", "Per": "ui_data/per.json" };
         let p1_ui_data, p2_ui_data; let pyodide, combat;
         let logQueue = []; let isProcessingLog = false;
         let isActionPhase = false;
+
+        // 선택 상자 변경 이벤트 등록
+        document.getElementById('p1-choice').addEventListener('change', (e) => updateCurtainTexture('p1', e.target.value));
+        document.getElementById('p2-choice').addEventListener('change', (e) => updateCurtainTexture('p2', e.target.value));
 
         function addLog(msg, cls = "") {
             if (!msg) return;
@@ -236,36 +256,25 @@
                 const statsMap = p.stats_values.toJs();
                 let remSh = p.shield;
                 const burnSh = statsMap.get("역화 보호막") || 0;
-                
                 const hpBar = document.getElementById(side + '-hp-bar');
                 const burnBar = document.getElementById(side + '-burning-sh-bar');
                 const pasBar = document.getElementById(side + '-passive-sh-bar');
                 const magBar = document.getElementById(side + '-magic-sh-bar');
                 const shBar = document.getElementById(side + '-sh-bar');
-
                 if (hpBar) {
                     hpBar.style.width = hpPer + "%";
-                    // "방어" 버프가 있는지 확인하여 클래스 적용
                     const buffs = p.buffs.toJs();
                     const hasDefense = buffs.some(b => b.get('name') === "방어");
                     const container = hpBar.parentElement;
-                    if (hasDefense) {
-                        hpBar.classList.add('hp-bar-defense');
-                        if (container) container.classList.add('defense-active');
-                    } else {
-                        hpBar.classList.remove('hp-bar-defense');
-                        if (container) container.classList.remove('defense-active');
-                    }
+                    if (hasDefense) { hpBar.classList.add('hp-bar-defense'); if (container) container.classList.add('defense-active'); }
+                    else { hpBar.classList.remove('hp-bar-defense'); if (container) container.classList.remove('defense-active'); }
                 }
-
                 const pasSh = Math.min(remSh, statsMap.get("패시브 보호막") || 0); remSh -= pasSh;
                 const magSh = Math.min(remSh, statsMap.get("마력 각성 보호막") || 0); remSh -= magSh;
-                
                 if (burnBar) burnBar.style.width = (burnSh / p.max_health * 100) + "%";
                 if (pasBar) pasBar.style.width = (pasSh / p.max_health * 100) + "%";
                 if (magBar) magBar.style.width = (magSh / p.max_health * 100) + "%";
                 if (shBar) shBar.style.width = (Math.max(0, remSh) / p.max_health * 100) + "%";
-                
                 const hpNum = document.getElementById(side + '-hp-numeric');
                 const shNum = document.getElementById(side + '-sh-num');
                 if (hpNum) hpNum.innerText = `${p.health} / ${p.max_health}`;
@@ -280,22 +289,28 @@
 
         async function init() {
             pyodide = await loadPyodide({ stdout: (text) => addLog(text) });
-            const files = ['game_logic/combat.py', 'game_logic/dice.py', 'characters/base_character.py', 'characters/character_cookie.py', 'characters/character_solis.py', 'characters/character_amor.py'];
+            const files = ['game_logic/combat.py', 'game_logic/dice.py', 'characters/base_character.py', 'characters/character_cookie.py', 'characters/character_solis.py', 'characters/character_amor.py', 'characters/character_per.py'];
             try { pyodide.FS.mkdir('game_logic'); pyodide.FS.mkdir('characters'); } catch(e){}
             for (const f of files) { const r = await fetch(f); pyodide.FS.writeFile(f, await r.text()); }
             await pyodide.runPythonAsync(`
                 from characters.character_cookie import CharacterCookie
                 from characters.character_solis import CharacterSolis
                 from characters.character_amor import CharacterAmor
+                from characters.character_per import CharacterPer
                 from game_logic.combat import Combat
                 def create_game(p1n, p1t, p2n, p2t):
                     def get_c(t, n):
                         if t == "Cookie": return CharacterCookie(n)
                         if t == "Solis": return CharacterSolis(n)
                         if t == "Amor": return CharacterAmor(n)
+                        if t == "Per": return CharacterPer(n)
                         return CharacterCookie(n)
                     return Combat(get_c(p1t, p1n), get_c(p2t, p2n), verbose=True)
             `);
+            // 초기 가림막 텍스처 생성
+            updateCurtainTexture('p1', document.getElementById('p1-choice').value);
+            updateCurtainTexture('p2', document.getElementById('p2-choice').value);
+            
             document.getElementById('loading-txt').style.display = 'none'; document.getElementById('setup-ui').style.display = 'block';
         }
 
@@ -303,11 +318,15 @@
             const p1t = document.getElementById('p1-choice').value; const p2t = document.getElementById('p2-choice').value;
             p1_ui_data = await (await fetch(UI_FILE_MAP[p1t])).json(); p2_ui_data = await (await fetch(UI_FILE_MAP[p2t])).json();
             combat = pyodide.runPython(`create_game("${p1_ui_data.name}", "${p1t}", "${p2_ui_data.name}", "${p2t}")`);
-            document.getElementById('overlay').style.display = 'none';
             document.getElementById('p1-name').innerText = p1_ui_data.name; document.getElementById('p1-class').innerText = p1_ui_data.class;
             document.getElementById('p2-name').innerText = p2_ui_data.name; document.getElementById('p2-class').innerText = p2_ui_data.class;
             renderSkills('p1', p1_ui_data); renderSkills('p2', p2_ui_data);
+            refreshUI();
+            document.getElementById('curtain-p1').classList.remove('wipe');
+            document.getElementById('curtain-p2').classList.remove('wipe');
+            document.getElementById('overlay').style.display = 'none';
             addLog("BATTLE START", "turn-divider"); 
+            playStartAnimations(combat);
             nextTurn();
         }
 
@@ -323,95 +342,50 @@
         }
 
         function showActionUI() {
-            if (combat.is_game_over()) {
-                refreshUI();
-                document.getElementById('action-bar').innerHTML = '<button class="start-btn" onclick="location.reload()">재경기</button>';
-                return;
-            }
-
+            if (combat.is_game_over()) { refreshUI(); document.getElementById('action-bar').innerHTML = '<button class="start-btn" onclick="location.reload()">재경기</button>'; return; }
             const curr = combat.get_current_player();
-            if (curr.is_casting && curr.casting_completed && !isActionPhase) {
-                combat.run_turn("casting_auto");
-                return;
-            }
-
-            if (isActionPhase) {
-                isActionPhase = false;
-                refreshUI();
-                nextTurn();
-                return;
-            }
-
+            if (curr.is_casting && curr.casting_completed && !isActionPhase) { combat.run_turn("casting_auto"); return; }
+            if (isActionPhase) { isActionPhase = false; refreshUI(); nextTurn(); return; }
             refreshUI();
-            document.getElementById('action-hint').classList.add('show');
-            const idx = combat.current_player_idx;
-            document.getElementById('turn-light-p1').classList.toggle('active-turn', idx === 0);
-            document.getElementById('turn-light-p2').classList.toggle('active-turn', idx === 1);
-            renderActionButtons();
+            updateTurnUI(combat, () => {
+                document.getElementById('action-hint').classList.add('show');
+                const idx = combat.current_player_idx;
+                document.getElementById('turn-light-p1').classList.toggle('active-turn', idx === 0);
+                document.getElementById('turn-light-p2').classList.toggle('active-turn', idx === 1);
+                renderActionButtons();
+            });
         }
 
         function renderActionButtons() {
             const curr = combat.get_current_player(); const skillMap = curr.skills.toJs();
             const actionBar = document.getElementById('action-bar'); actionBar.innerHTML = '';
-            
             if (curr.is_casting) {
-                const keepBtn = document.createElement('button'); keepBtn.className = 'action-btn';
-                keepBtn.style.setProperty('--btn-rgb', "var(--accent-rgb)");
+                const keepBtn = document.createElement('button'); keepBtn.className = 'action-btn'; keepBtn.style.setProperty('--btn-rgb', "var(--accent-rgb)");
                 const progress = (curr.casting_total_turns - curr.casting_turns_remaining) / curr.casting_total_turns;
                 keepBtn.style.setProperty('--gauge-width', (progress * 100) + '%');
-                keepBtn.innerHTML = `
-                    <div class="btn-text">영창 유지</div>
-                    <div class="casting-ui-container">
-                        <div class="cast-gauge-track">
-                            <div class="cast-gauge-fill"></div>
-                        </div>
-                        <div class="cast-remain-num">${curr.casting_turns_remaining}</div>
-                    </div>
-                `;
-                keepBtn.onclick = () => { 
-                    document.getElementById('action-hint').classList.remove('show');
-                    document.getElementById('action-bar').innerHTML = '';
-                    isActionPhase = true;
-                    combat.run_turn("casting_wait");
-                };
-                
-                const cancelBtn = document.createElement('button'); cancelBtn.className = 'action-btn casting-cancel';
-                cancelBtn.style.setProperty('--btn-rgb', "var(--red-rgb)");
+                keepBtn.innerHTML = `<div class="btn-text">영창 유지</div><div class="casting-ui-container"><div class="cast-gauge-track"><div class="cast-gauge-fill"></div></div><div class="cast-remain-num">${curr.casting_turns_remaining}</div></div>`;
+                keepBtn.onclick = (e) => handleActionClick(e, "casting_wait");
+                const cancelBtn = document.createElement('button'); cancelBtn.className = 'action-btn casting-cancel'; cancelBtn.style.setProperty('--btn-rgb', "var(--red-rgb)");
                 cancelBtn.innerHTML = `<div class="btn-text">영창 취소</div><div class="btn-cancel-text">영창 취소</div>`;
-                cancelBtn.onclick = () => {
-                    document.getElementById('action-hint').classList.remove('show');
-                    document.getElementById('action-bar').innerHTML = '';
-                    isActionPhase = false;
-                    combat.run_turn("영창 취소");
-                    showActionUI();
-                };
-                actionBar.appendChild(keepBtn);
-                actionBar.appendChild(cancelBtn);
-                return;
+                cancelBtn.onclick = (e) => handleActionClick(e, "영창 취소");
+                actionBar.appendChild(keepBtn); actionBar.appendChild(cancelBtn); return;
             }
-
             const acts = ["일반공격"].concat(Array.from(skillMap.keys()));
             acts.forEach(name => {
                 const btn = document.createElement('button'); btn.className = 'action-btn';
                 let rgb = "var(--accent-rgb)", max_cd = 1, current_cd = 0;
-                if (name === "방어") { rgb = "var(--gold-rgb)"; }
-                
+                if (name === "방어") rgb = "var(--gold-rgb)";
                 if (name === "일반공격") { rgb = "var(--red-rgb)"; max_cd = 1; current_cd = 0; }
                 else { 
                     const s = skillMap.get(name); if (s) { current_cd = s.get("current_cd"); max_cd = s.get("cooldown"); if (name === "하이 파이쟈") max_cd += 3; }
                     const sideData = (combat.current_player_idx === 0) ? p1_ui_data : p2_ui_data;
                     const skillInfo = sideData.skills.find(sk => sk.n === name);
                     if (skillInfo && skillInfo.is_ultimate) { 
-                        if (sideData.ultimate_class) btn.classList.add(sideData.ultimate_class); 
-                        if (sideData.ultimate_rgb) rgb = sideData.ultimate_rgb; 
-                        
+                        if (sideData.ultimate_class) btn.classList.add(sideData.ultimate_class); if (sideData.ultimate_rgb) rgb = sideData.ultimate_rgb; 
                         if (sideData.id === "Cookie") {
-                            const bf = curr.backfire;
-                            const fillPercent = (bf / 30) * 80; // 수치 보정: 30일 때 글자 끝(80%)에 도달
+                            const bf = curr.backfire; const fillPercent = (bf / 30) * 80;
                             btn.style.setProperty('--fill-percent', fillPercent + '%');
-                            if (bf >= 30) btn.classList.add('intensity-3');
-                            else if (bf >= 21) btn.classList.add('intensity-2');
-                            else if (bf >= 11) btn.classList.add('intensity-1');
+                            if (bf >= 30) btn.classList.add('intensity-3'); else if (bf >= 21) btn.classList.add('intensity-2'); else if (bf >= 11) btn.classList.add('intensity-1');
                         }
                     }
                 }
@@ -419,24 +393,21 @@
                 let isDisabled = current_cd > 0;
                 const sideData = (combat.current_player_idx === 0) ? p1_ui_data : p2_ui_data;
                 const skillInfo = (name !== "방어" && name !== "일반공격") ? sideData.skills.find(sk => sk.n === name) : null;
-                if (skillInfo && skillInfo.is_ultimate) {
-                    if (sideData.id === "Cookie" && curr.backfire < 30) isDisabled = true;
-                }
+                if (skillInfo && skillInfo.is_ultimate && sideData.id === "Cookie" && curr.backfire < 30) isDisabled = true;
                 btn.disabled = isDisabled;
                 const progress = current_cd === 0 ? 0 : current_cd / max_cd;
                 btn.style.setProperty('--gauge-width', (progress * 100) + '%');
                 btn.innerHTML = `<div class="btn-text">${name}</div>${current_cd > 0 ? `<div class="cd-overlay-unit"><div class="gauge-fill"></div><div class="num-huge">${current_cd}</div></div>` : ''}`;
-                btn.onclick = () => { 
-                    document.getElementById('action-hint').classList.remove('show');
-                    document.getElementById('action-bar').innerHTML = '';
-                    isActionPhase = true;
-                    const res = combat.run_turn(name).toJs();
-                    if (!res.get('success')) {
-                        isActionPhase = false;
-                        showActionUI();
-                    }
-                };
+                btn.onclick = (e) => handleActionClick(e, name);
                 actionBar.appendChild(btn);
+            });
+        }
+
+        function handleActionClick(e, name) {
+            handleActionAnimation(e, combat, () => {
+                isActionPhase = true;
+                const res = combat.run_turn(name).toJs();
+                if (!res.get('success')) { isActionPhase = false; showActionUI(); }
             });
         }
 
@@ -444,6 +415,7 @@
             if (combat.is_game_over()) return;
             const curr = combat.get_current_player();
             addLog(`${curr.name}의 턴`, "turn-divider");
+            closeActionCurtain(combat);
             curr.start_turn();
         }
         init();
