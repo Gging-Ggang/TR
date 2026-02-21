@@ -30,6 +30,33 @@
         .hp-numeric { font-family: 'Pretendard-Bold'; font-size: 14px; color: #ffffff; margin-bottom: 4px; display: block; }
         .hp-bar-container { width: 100%; height: 20px; background: #2a2a2a; border-radius: 4px; overflow: hidden; position: relative; border: 1px solid #444; }
         .hp-bar { height: 100%; background: #ffffff; transition: width 0.3s; }
+        .hp-bar-defense {
+            background: #ffffff !important; /* 체력바 색상 원래대로(흰색) */
+            box-shadow: none !important; /* 글로우 효과 제거 */
+        }
+        
+        .hp-bar-container.defense-active {
+            overflow: visible !important;
+            border: 2px solid #00e5ff !important; /* 체력바 테두리 하늘색 추가 */
+        }
+
+        .hp-bar-container.defense-active::after {
+            content: '🛡️'; /* 속이 채워진 방패 이모지 */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: #ffffff;
+            /* 방패 아이콘 테두리 효과 (하늘색) */
+            text-shadow: 
+                -1.5px -1.5px 0 #00e5ff,  
+                 1.5px -1.5px 0 #00e5ff,
+                -1.5px  1.5px 0 #00e5ff,
+                 1.5px  1.5px 0 #00e5ff;
+            z-index: 100;
+            pointer-events: none;
+        }
         
         .shield-line-container { width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; margin-top: 4px; display: flex; }
         .shield-line { height: 100%; background: #87ceeb; transition: width 0.3s; }
@@ -86,10 +113,57 @@
             border-color: #ff6600; 
             position: relative;
             transition: all 0.3s;
+            overflow: hidden;
         }
-        .ultimate-cookie.intensity-1 { box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); animation: ultimate-flame-pulse 1.5s infinite alternate; }
-        .ultimate-cookie.intensity-2 { box-shadow: 0 0 30px rgba(255, 69, 0, 0.7), inset 0 0 10px rgba(255, 140, 0, 0.3); animation: ultimate-flame-pulse 1.0s infinite alternate; }
-        .ultimate-cookie.intensity-3 { box-shadow: 0 0 50px rgba(255, 69, 0, 1), inset 0 0 20px rgba(255, 140, 0, 0.6); animation: ultimate-flame-pulse 0.6s infinite alternate; border-color: #fff; }
+        .ultimate-cookie::before {
+            content: 'BACKFIRE';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Pretendard-Bold';
+            font-size: 50px; /* 원래 크기로 복구 */
+            font-weight: 900;
+            background: linear-gradient(to top, 
+                rgba(255, 69, 0, 1) 0%, 
+                rgba(255, 69, 0, 1) var(--fill-percent, 0%), 
+                rgba(255, 69, 0, 0.1) var(--fill-percent, 0%), 
+                rgba(255, 69, 0, 0.1) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            z-index: 1;
+            pointer-events: none;
+            letter-spacing: -2px;
+            white-space: nowrap;
+            transform: scale(1.45, 2.4); /* 가로 1.45배, 세로 2.4배 */
+            transform-origin: center;
+            transition: all 0.4s ease;
+        }
+        .ultimate-cookie::after { display: none; } /* 기존 clip-path 방식 폐기 */
+        
+        .ultimate-cookie .btn-text {
+            color: rgba(255, 255, 255, 0.1) !important; /* 비활성 시 아주 연하게 */
+            mix-blend-mode: normal !important;
+            text-shadow: none;
+            z-index: 20;
+            transition: all 0.4s ease;
+        }
+        .ultimate-cookie.intensity-3 .btn-text {
+            color: #ffffff !important; /* 발동 가능 시 진하게 */
+            text-shadow: 0 0 15px rgba(255, 69, 0, 1), 0 0 5px rgba(0,0,0,1);
+            transform: scale(1.05);
+        }
+        .ultimate-cookie.intensity-3::before {
+            background: linear-gradient(to top, #ffffff 0%, #ffffff 100%); /* 가득 찼을 때 흰색 발광 */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(255, 69, 0, 0.8));
+        }
+        .ultimate-cookie.intensity-1 { box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); }
+        .ultimate-cookie.intensity-2 { box-shadow: 0 0 30px rgba(255, 69, 0, 0.7); }
+        .ultimate-cookie.intensity-3 { box-shadow: 0 0 50px rgba(255, 69, 0, 1); border-color: #fff; }
+        .ultimate-cookie.intensity-3::after { color: rgba(255, 102, 0, 0.8); }
 
         .ultimate-cookie.intensity-1::after, .ultimate-cookie.intensity-2::after, .ultimate-cookie.intensity-3::after {
             content: ''; position: absolute; inset: 0; background: linear-gradient(to top, transparent, rgba(255, 102, 0, 0.2), rgba(255, 215, 0, 0.1)); z-index: 5; pointer-events: none;
@@ -169,7 +243,20 @@
                 const magBar = document.getElementById(side + '-magic-sh-bar');
                 const shBar = document.getElementById(side + '-sh-bar');
 
-                if (hpBar) hpBar.style.width = hpPer + "%";
+                if (hpBar) {
+                    hpBar.style.width = hpPer + "%";
+                    // "방어" 버프가 있는지 확인하여 클래스 적용
+                    const buffs = p.buffs.toJs();
+                    const hasDefense = buffs.some(b => b.get('name') === "방어");
+                    const container = hpBar.parentElement;
+                    if (hasDefense) {
+                        hpBar.classList.add('hp-bar-defense');
+                        if (container) container.classList.add('defense-active');
+                    } else {
+                        hpBar.classList.remove('hp-bar-defense');
+                        if (container) container.classList.remove('defense-active');
+                    }
+                }
 
                 const pasSh = Math.min(remSh, statsMap.get("패시브 보호막") || 0); remSh -= pasSh;
                 const magSh = Math.min(remSh, statsMap.get("마력 각성 보호막") || 0); remSh -= magSh;
@@ -303,12 +390,13 @@
                 return;
             }
 
-            const acts = ["일반공격", "방어"].concat(Array.from(skillMap.keys()));
+            const acts = ["일반공격"].concat(Array.from(skillMap.keys()));
             acts.forEach(name => {
                 const btn = document.createElement('button'); btn.className = 'action-btn';
                 let rgb = "var(--accent-rgb)", max_cd = 1, current_cd = 0;
-                if (name === "방어") { rgb = "var(--gold-rgb)"; max_cd = 2; current_cd = curr.defense_cooldown; }
-                else if (name === "일반공격") { rgb = "var(--red-rgb)"; max_cd = 1; current_cd = 0; }
+                if (name === "방어") { rgb = "var(--gold-rgb)"; }
+                
+                if (name === "일반공격") { rgb = "var(--red-rgb)"; max_cd = 1; current_cd = 0; }
                 else { 
                     const s = skillMap.get(name); if (s) { current_cd = s.get("current_cd"); max_cd = s.get("cooldown"); if (name === "하이 파이쟈") max_cd += 3; }
                     const sideData = (combat.current_player_idx === 0) ? p1_ui_data : p2_ui_data;
@@ -319,6 +407,8 @@
                         
                         if (sideData.id === "Cookie") {
                             const bf = curr.backfire;
+                            const fillPercent = (bf / 30) * 80; // 수치 보정: 30일 때 글자 끝(80%)에 도달
+                            btn.style.setProperty('--fill-percent', fillPercent + '%');
                             if (bf >= 30) btn.classList.add('intensity-3');
                             else if (bf >= 21) btn.classList.add('intensity-2');
                             else if (bf >= 11) btn.classList.add('intensity-1');
@@ -340,7 +430,11 @@
                     document.getElementById('action-hint').classList.remove('show');
                     document.getElementById('action-bar').innerHTML = '';
                     isActionPhase = true;
-                    combat.run_turn(name);
+                    const res = combat.run_turn(name).toJs();
+                    if (!res.get('success')) {
+                        isActionPhase = false;
+                        showActionUI();
+                    }
                 };
                 actionBar.appendChild(btn);
             });

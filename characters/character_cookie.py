@@ -4,12 +4,12 @@ import random
 class CharacterCookie(BaseCharacter):
     def __init__(self, name="쿠키"):
         super().__init__(name=name, health=70)
-        self.skills = {
+        self.skills.update({
             "하이 파이쟈": {"cooldown": 1, "current_cd": 0},
             "불덩이 작렬": {"cooldown": 3, "current_cd": 0},
             "마력 각성": {"cooldown": 4, "current_cd": 0},
-            "메테오": {"cooldown": 0, "current_cd": 0}
-        }
+            "역화 폭발": {"cooldown": 0, "current_cd": 0}
+        })
         self.fuse = 5
         self.flame = 0
         self.backfire = 0
@@ -29,6 +29,35 @@ class CharacterCookie(BaseCharacter):
         print(f"  - [개전] {self.name}의 도화선이 5로 설정되었습니다.")
         self.stats_values["도화선"] = self.fuse
 
+    def trigger_passive(self):
+        """반복 패시브 로직: 불꽃/역화 획득 및 보호막 생성"""
+        if self.next_turn_empowered:
+            print(f"  - [마력 각성] 패시브 강화! 주사위를 두 번 굴립니다.")
+            r1 = random.randint(1, 3)
+            r2 = random.randint(1, 3)
+            self.flame = max(r1, r2)
+            shield_roll = min(r1, r2)
+            
+            self.fuse += self.flame
+            gain = self.flame * 2
+            self.backfire += gain
+            print(f"    > 주사위 결과: [{r1}], [{r2}] -> 불꽃 {self.flame}, 역화 {gain} 획득")
+            self.next_turn_empowered = False
+        else:
+            dice_roll = random.randint(1, 3)
+            self.flame = dice_roll
+            shield_roll = dice_roll
+            
+            self.fuse += self.flame
+            self.backfire += self.flame
+            print(f"    > 주사위 결과: [{dice_roll}] -> 불꽃 {self.flame}")
+
+        new_sh = (3 - shield_roll) * 4
+        if new_sh > 0:
+            self.shield += new_sh
+            self.current_passive_shield = new_sh
+            print(f"  - [보호막] (3 - {shield_roll}) * 4 = {new_sh}의 보호막 획득")
+
     def start_turn(self):
         """반복: 자신의 턴 시작 시 발동"""
         super().start_turn()
@@ -46,33 +75,7 @@ class CharacterCookie(BaseCharacter):
             self.flame = 0
             self.current_passive_shield = 0
         else:
-            if self.next_turn_empowered:
-                print(f"  - [마력 각성] 패시브 강화! 주사위를 두 번 굴립니다.")
-                r1 = random.randint(1, 3)
-                r2 = random.randint(1, 3)
-                self.flame = max(r1, r2)
-                shield_roll = min(r1, r2)
-                
-                self.fuse += self.flame
-                # 마력 각성: 역화 두 배 획득
-                gain = self.flame * 2
-                self.backfire += gain
-                print(f"    > 주사위 결과: [{r1}], [{r2}] -> 불꽃 {self.flame}, 역화 {gain} 획득")
-                self.next_turn_empowered = False
-            else:
-                dice_roll = random.randint(1, 3)
-                self.flame = dice_roll
-                shield_roll = dice_roll
-                
-                self.fuse += self.flame
-                self.backfire += self.flame
-                print(f"    > 주사위 결과: [{dice_roll}] -> 불꽃 {self.flame}")
-
-            new_sh = (3 - shield_roll) * 4
-            if new_sh > 0:
-                self.shield += new_sh
-                self.current_passive_shield = new_sh
-                print(f"  - [보호막] (3 - {shield_roll}) * 4 = {new_sh}의 보호막 획득")
+            self.trigger_passive()
 
         display_backfire = self.meteor_shield if self.is_casting else self.backfire
         self.stats_values.update({
@@ -81,14 +84,13 @@ class CharacterCookie(BaseCharacter):
             "역화 보호막": self.meteor_shield
         })
 
-    def take_damage(self, damage: int, attacker=None):
-        # [지시사항] 역화 보호막 처리: 0이 되면 파괴 판정 및 영창 중단
+    def take_damage(self, damage: int, damage_type: str = "일반 피해", attacker=None):
+        # 역화 보호막 처리
         if self.meteor_shield > 0:
             if self.meteor_shield > damage:
                 self.meteor_shield -= damage
                 damage = 0
             else:
-                # 피해가 보호막보다 크거나 같으면 보호막 파괴 및 해당 턴 모든 피해 무시
                 self.meteor_shield = 0
                 damage = 0
                 if self.is_casting:
@@ -97,7 +99,7 @@ class CharacterCookie(BaseCharacter):
         
         old_hp = self.health
         if damage > 0:
-            super().take_damage(damage, attacker)
+            super().take_damage(damage, damage_type, attacker)
         
         if self.health < old_hp:
             if not self.is_casting:
@@ -116,14 +118,21 @@ class CharacterCookie(BaseCharacter):
         return f"{self.name}의 [도화선] 화염:{self.flame}, 도화선:{self.fuse}"
 
     def act(self, action_name: str = None) -> dict:
-        if action_name == "메테오" and self.is_casting and self.casting_completed:
-            dmg = 30 + self.meteor_shield
-            msg = f"{self.name}의 궁극기 [메테오]가 낙하합니다! (기본 30 + 남은 보호막 {self.meteor_shield} 피해)"
+        if action_name == "역화 폭발" and self.is_casting and self.casting_completed:
+            # [지시사항] 행동 전 패시브 재발동
+            print(f"  - [역화 폭발] 영창 완료! 행동 전 패시브가 재활성화됩니다.")
+            self.trigger_passive()
+            
+            fixed_dmg = self.meteor_shield
+            normal_dmg = 30
+            msg = f"{self.name}의 궁극기 [역화 폭발]! 응축된 마력을 방출합니다! (일반 피해 30 + 고정 피해 {fixed_dmg})"
+            
+            # 공격 후 상태 초기화
             self.meteor_shield = 0
             self.backfire = 0
             self.fuse = 5
             self.stats_values.update({"도화선": 5, "역화": 0, "역화 보호막": 0})
-            return {"type": "attack", "damage": dmg, "message": msg}
+            return {"type": "attack", "damage": normal_dmg, "damage_type": "일반 피해", "fixed_damage": fixed_dmg, "message": msg}
 
         if action_name == "일반공격":
             rolls = [random.randint(1, 6) for _ in range(self.flame)]
@@ -132,9 +141,10 @@ class CharacterCookie(BaseCharacter):
             return {"type": "attack", "damage": dmg, "message": f"{self.name}의 기본적인 마법 화살 공격!"}
 
         if action_name in ["defense", "방어"]:
-            self.defense_cooldown = 2
-            self.shield += 8
-            return {"type": "defense", "message": f"{self.name}가 방어 태세를 갖춰 보호막 8을 얻었습니다."}
+            skill = self.skills["방어"]
+            skill["current_cd"] = skill["cooldown"]
+            self.add_buff("방어", "일반", 1)
+            return {"type": "defense", "message": f"{self.name}가 방어 태세를 갖추어 1턴간 받는 일반 피해가 90% 감소합니다."}
 
         if action_name == "하이 파이쟈":
             skill = self.skills[action_name]
@@ -169,22 +179,24 @@ class CharacterCookie(BaseCharacter):
 
         if action_name == "마력 각성":
             skill = self.skills[action_name]
-            self.defense_cooldown = 2
+            self.remove_buff("방어")
+            if "방어" in self.skills:
+                self.skills["방어"]["current_cd"] += 1
             self.shield += 15
             self.ma_shield = 15
             self.next_turn_empowered = True
             self.stats_values["마력 각성 보호막"] = 15
             skill["current_cd"] = skill["cooldown"]
-            return {"type": "status", "message": f"{self.name}가 마력을 각성하여 15의 보호막을 얻었습니다! 다음 턴 주사위를 두 번 굴리며 역화 획득량이 두 배가 됩니다."}
+            return {"type": "status", "message": f"{self.name}가 마력을 각성하여 15의 보호막을 얻었습니다! (방어 버프 제거 및 쿨타임 1턴 증가) 다음 턴 주사위를 두 번 굴리며 역화 획득량이 두 배가 됩니다."}
 
-        if action_name == "메테오":
+        if action_name == "역화 폭발":
             if self.backfire >= 30:
                 consumed = self.backfire
                 self.meteor_shield = consumed
                 self.backfire = 0
                 self.stats_values.update({"역화": consumed, "역화 보호막": consumed})
-                return {"type": "casting", "skill_name": "메테오", "turns": 3}
+                return {"type": "casting", "skill_name": "역화 폭발", "turns": 2}
             else:
-                return {"type": "log", "message": f"메테오를 사용하기 위한 조건이 부족합니다. (현재 역화: {self.backfire}/30)"}
+                return {"type": "log", "message": f"역화 폭발을 사용하기 위한 조건이 부족합니다. (현재 역화: {self.backfire}/30)"}
 
         return {"type": "log", "message": "알 수 없는 행동"}

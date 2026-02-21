@@ -4,9 +4,9 @@ from game_logic.dice import roll
 class CharacterB(BaseCharacter):
     def __init__(self, name="B"):
         super().__init__(name=name, health=100)
-        self.skills = {
+        self.skills.update({
             "attack": {"damage": "2d10", "cooldown": 2, "current_cd": 0}
-        }
+        })
         self.stats_values = {"Combo": 0} # 고유 수치: 콤보
 
     def get_passive_log(self) -> str:
@@ -17,12 +17,11 @@ class CharacterB(BaseCharacter):
         if action_name is None:
             action_name = "attack"
 
-        if action_name == "defense":
-            if self.defense_cooldown > 0:
-                return {"type": "log", "message": f"{self.name}는 아직 방어할 수 없습니다."}
-            self.defense_cooldown = 2
-            self.shield += 8
-            return {"type": "defense", "message": f"{self.name}가 방어 태세를 갖추어 방어막 8을 얻었습니다."}
+        if action_name == "방어" or action_name == "defense":
+            skill = self.skills["방어"]
+            skill["current_cd"] = skill["cooldown"]
+            self.add_buff("방어", "일반", 1)
+            return {"type": "defense", "message": f"{self.name}가 방어 태세를 갖추어 1턴간 받는 일반 피해가 90% 감소합니다."}
 
         if action_name == "attack":
             skill = self.skills[action_name]

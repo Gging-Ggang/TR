@@ -4,11 +4,11 @@ import random
 class CharacterAmor(BaseCharacter):
     def __init__(self, name="아모르"):
         super().__init__(name=name, health=100)
-        self.skills = {
+        self.skills.update({
             "자활_집념": {"cooldown": 2, "current_cd": 0},
             "백야_흑야": {"cooldown": 4, "current_cd": 0},
             "혼돈선": {"cooldown": 7, "current_cd": 0}
-        }
+        })
         self.persona_accumulated_dmg = 0
         self.is_dark = False
         self.dark_turns_left = 0
@@ -21,7 +21,7 @@ class CharacterAmor(BaseCharacter):
         self.pending_dark_dmg = 0
         self.stats_values = {"Darkness Count": 0, "Persona Stack": 0, "Max Dark Dmg": 0}
 
-    def take_damage(self, damage: int, attacker=None):
+    def take_damage(self, damage: int, damage_type: str = "일반 피해", attacker=None):
         actual_damage = damage
         if self.chaos_good_light_turns > 0:
             actual_damage = damage // 2
@@ -40,7 +40,7 @@ class CharacterAmor(BaseCharacter):
             else:
                 if attacker:
                     print(f"  - [흑야] {attacker.name}에게 {value}의 피해를 반사!")
-                    attacker.take_damage(value)
+                    attacker.take_damage(value, damage_type="일반 피해")
 
         if self.tenacity_shield_active and self.shield > 0:
             if self.shield <= actual_damage:
@@ -48,7 +48,7 @@ class CharacterAmor(BaseCharacter):
                 self.health = min(self.max_health, self.health + 4)
                 self.tenacity_shield_active = False
 
-        super().take_damage(actual_damage, attacker)
+        super().take_damage(actual_damage, damage_type, attacker)
 
         if not self.is_dark and self.persona_accumulated_dmg >= 44:
             self.enter_darkness()
@@ -97,9 +97,13 @@ class CharacterAmor(BaseCharacter):
             dmg = r1 + r2
             print(f"  - [주사위] 2d6 결과: [{r1}, {r2}] = {dmg}")
             return {"type": "attack", "damage": dmg, "message": f"{self.name}의 묵직한 공격!"}
+        
         if action_name in ["defense", "방어"]:
-            self.shield += 8
-            return {"type": "defense", "message": f"{self.name}가 방어 자세를 취합니다."}
+            skill = self.skills["방어"]
+            skill["current_cd"] = skill["cooldown"]
+            self.add_buff("방어", "일반", 1)
+            return {"type": "defense", "message": f"{self.name}가 방어 태세로 1턴간 받는 일반 피해가 90% 감소합니다."}
+            
         if action_name == "자활_집념":
             skill = self.skills[action_name]
             r_val = random.randint(1, 10)

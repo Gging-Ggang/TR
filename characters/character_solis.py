@@ -1,119 +1,134 @@
 from .base_character import BaseCharacter
+from game_logic.dice import roll
 import random
 
 class CharacterSolis(BaseCharacter):
     def __init__(self, name="솔리스"):
         super().__init__(name=name, health=90)
-        self.skills = {
+        self.skills.update({
             "속임수 공격": {"cooldown": 3, "current_cd": 0},
-            "몽환삼단": {"cooldown": 4, "current_cd": 0},
-            "극의": {"cooldown": 5, "current_cd": 0}
-        }
-        self.no_crit_turns = 0
-        self.is_critical = False
-        self.acrobatics_val = 0
-        self.deceptive_strike_bonus = False
-        self.ultimate_intent_active = False
-        self.stats_values = {"Acrobatics": 0, "Crit Hits": 0}
+            "비열한 기습": {"cooldown": 5, "current_cd": 0},
+            "몽환삼단": {"cooldown": 6, "current_cd": 0},
+            "결심": {"cooldown": 8, "current_cd": 0}
+        })
+        self.salui_stack = 0
+        self.kyulsim_stack = 0
+        self.deceptive_bonus = False
+        self.stats_values = {"살의": 0, "결심": 0}
 
     def start_turn(self):
         super().start_turn()
-        r1, r2 = random.randint(1, 5), random.randint(1, 5)
-        dice_roll = r1 + r2
-        print(f"  - [곡예] 2d5 주사위 굴림: [{r1}, {r2}] = {dice_roll}")
         
-        if self.ultimate_intent_active:
-            print(f"    > 극의 보정 적용: {dice_roll} - 2 = {dice_roll - 2}")
-            dice_roll = max(1, dice_roll - 2)
-            self.ultimate_intent_active = False
+        # [패시브: 계획] 턴 시작 시 1d3 주사위
+        plan_roll = random.randint(1, 3)
+        print(f"  - [패시브: 계획] 1d3 주사위: [{plan_roll}]")
         
-        self.acrobatics_val = dice_roll
-        self.stats_values["Acrobatics"] = dice_roll
+        if plan_roll == 1:
+            print(f"    > 계획 성공 (1): 이번 턴 모든 공격을 회피합니다!")
+            self.add_buff("회피", "[이로운 효과]", 1)
+        elif plan_roll == 2:
+            print(f"    > 계획 성공 (2): 모든 스킬의 쿨타임이 1턴 감소합니다.")
+            for s_name, s_data in self.skills.items():
+                if s_data["current_cd"] > 0:
+                    s_data["current_cd"] -= 1
+        elif plan_roll == 3:
+            print(f"    > 계획 성공 (3): '살의' 1스택을 획득합니다.")
+            self.gain_salui(1)
 
-        if self.acrobatics_val < 6:
-            self.is_critical = True
-            self.no_crit_turns = 0
-            self.stats_values["Crit Hits"] += 1
-            print(f"    > 곡예 성공! 치명타(1.5배) 상태가 됩니다.")
-        else:
-            self.is_critical = False
-            self.no_crit_turns += 1
+        # 모든 스킬이 쿨타임일 때 방어막 4 획득
+        if all(s["current_cd"] > 0 for s in self.skills.values()):
+            print(f"  - [패시브] 모든 스킬이 쿨타임 중입니다. 보호막 4를 획득합니다.")
+            self.shield += 4
 
-        if self.no_crit_turns >= 2:
-            print(f"  - [곡예 실패] 2턴 연속 미발동으로 모든 스킬 쿨타임이 1턴 감소합니다.")
-            for skill in self.skills.values():
-                if skill['current_cd'] > 0: skill['current_cd'] -= 1
-            self.no_crit_turns = 0
+        self.update_stats()
+
+    def gain_salui(self, count):
+        self.salui_stack += count
+        print(f"  - '살의' 스택 증가 (+{count}): 현재 {self.salui_stack}/10")
+        if self.salui_stack >= 10:
+            print(f"    > 살의 10스택 도달! 다음 공격 시 최대 생명력의 10% 고정 피해를 입힙니다.")
+        self.update_stats()
+
+    def update_stats(self):
+        self.stats_values["살의"] = self.salui_stack
+        self.stats_values["결심"] = self.kyulsim_stack
 
     def get_passive_log(self) -> str:
-        crit_msg = "[치명타 준비]" if self.is_critical else "[일반 상태]"
-        return f"{self.name}의 현재 상태: {crit_msg}"
-
-    def take_damage(self, damage: int, attacker=None):
-        if self.ultimate_intent_active and attacker:
-            evade_roll = random.randint(1, 5)
-            print(f"  - [회피 시도] 1d5 주사위: [{evade_roll}]")
-            if evade_roll <= 3:
-                print(f"    > 회피 성공! 대미지를 무시하고 반격을 준비합니다.")
-                r_dmg = random.randint(1, 4) + 6
-                counter_dmg = self.apply_crit(r_dmg)
-                if self.deceptive_strike_bonus:
-                    bonus = (self.acrobatics_val // 2) + 2
-                    counter_dmg += bonus
-                    print(f"    > [연계] 속임수 공격의 표식 발동: +{bonus} 피해")
-                    self.deceptive_strike_bonus = False
-                print(f"    > [반격] {attacker.name}에게 {counter_dmg}의 피해를 입혔습니다!")
-                attacker.take_damage(counter_dmg)
-                return
-
-        super().take_damage(damage, attacker)
-
-    def apply_crit(self, damage):
-        if self.is_critical:
-            final = int(damage * 1.5)
-            print(f"    > 치명타 발동! {damage} -> {final} (1.5배)")
-            return final
-        return damage
+        return f"{self.name}의 살의: {self.salui_stack}/10, 결심: {self.kyulsim_stack}"
 
     def act(self, action_name: str = None) -> dict:
+        # [결심] 스택 소모 및 보정 처리
+        is_critical = False
+        if self.kyulsim_stack > 0 and action_name not in ["방어", "defense"]:
+            self.kyulsim_stack -= 1
+            is_critical = True
+            self.gain_salui(1)
+            print(f"  - [결심] 스택 소모 (남은 결심: {self.kyulsim_stack})")
+
+        # 살의 10스택 고정 피해 체크
+        bonus_fixed_dmg = 0
+        if self.salui_stack >= 10 and action_name not in ["방어", "defense", "결심"]:
+            self.salui_stack -= 10
+            bonus_fixed_dmg = -1 # 최대 생명력 10% 특수 코드
+            print(f"  - [살의 폭발] 10스택을 소모하여 고정 피해를 입힙니다!")
+
+        result = {"type": "log", "message": "알 수 없는 행동"}
+
         if action_name == "일반공격":
-            r1, r2 = random.randint(1, 6), random.randint(1, 6)
-            print(f"  - [주사위] 2d6 결과: [{r1}, {r2}] = {r1+r2}")
-            dmg = self.apply_crit(r1 + r2)
-            return {"type": "attack", "damage": dmg, "message": f"{self.name}의 가벼운 단검 투척!"}
+            self.gain_salui(1)
+            dmg = roll("1d10")
+            if self.deceptive_bonus:
+                extra = roll("2d6")
+                dmg += extra
+                print(f"  - [속임수 연계] 추가 피해 +{extra} 적용")
+                self.deceptive_bonus = False
+            
+            if is_critical: dmg = int(dmg * 1.5)
+            result = {"type": "attack", "damage": dmg, "message": f"{self.name}의 기습적인 칼날 공격!"}
 
-        if action_name in ["defense", "방어"]:
-            self.defense_cooldown = 2
-            self.shield += 8
-            return {"type": "defense", "message": f"{self.name}가 방어 태세로 보호막 8을 얻었습니다."}
-
-        if action_name == "속임수 공격":
-            skill = self.skills[action_name]
-            r1, r2 = random.randint(1, 4), random.randint(1, 4)
-            print(f"  - [주사위] 2d4+8 결과: ([{r1}, {r2}] + 8) = {r1+r2+8}")
-            damage = self.apply_crit(r1 + r2 + 8)
-            self.deceptive_strike_bonus = True
-            self.shield += 4
+        elif action_name in ["방어", "defense"]:
+            skill = self.skills["방어"]
             skill["current_cd"] = skill["cooldown"]
-            return {"type": "attack", "damage": damage, "message": f"{self.name}의 기습적인 속임수 공격!"}
+            self.add_buff("방어", "일반", 1)
+            result = {"type": "defense", "message": f"{self.name}가 방어 태세로 1턴간 피해를 90% 줄입니다."}
 
-        if action_name == "몽환삼단":
-            skill = self.skills[action_name]
-            r1, r2 = random.randint(1, 3), random.randint(1, 3)
-            base_hit = r1 + r2 + 1
-            print(f"  - [주사위] 2d3+1 결과: ([{r1}, {r2}] + 1) = {base_hit}")
-            hit = self.apply_crit(base_hit)
-            total_damage = hit * 3
-            print(f"  - [연격] {hit} 데미지로 3회 타격!")
+        elif action_name == "속임수 공격":
+            skill = self.skills["속임수 공격"]
             skill["current_cd"] = skill["cooldown"]
-            if total_damage / 2 <= 9:
-                print(f"    > 총 피해의 절반이 9 이하이므로 쿨타임이 1턴 감소합니다.")
-                skill["current_cd"] -= 1
-            return {"type": "attack", "damage": total_damage, "message": f"{self.name}의 현란한 몽환삼단!"}
+            dmg = roll("2d6") + 4
+            if is_critical: dmg = int(dmg * 1.5)
+            self.gain_salui(2)
+            self.deceptive_bonus = True
+            result = {"type": "attack", "damage": dmg, "message": f"{self.name}의 속임수 공격! 다음 공격에 추가 피해가 붙습니다."}
 
-        if action_name == "극의":
-            skill = self.skills[action_name]
-            self.ultimate_intent_active = True
+        elif action_name == "비열한 기습":
+            skill = self.skills["비열한 기습"]
             skill["current_cd"] = skill["cooldown"]
-            return {"type": "status", "message": f"{self.name}가 정신을 집중하여 극의의 경지에 도달했습니다."}
-        return {"type": "log", "message": "알 수 없는 행동"}
+            dmg = roll("2d6")
+            if is_critical: dmg = int(dmg * 1.5)
+            result = {"type": "attack", "damage": dmg, "dispel": True, "message": f"{self.name}의 비열한 기습! 상대의 강화 효과를 걷어냅니다."}
+
+        elif action_name == "몽환삼단":
+            skill = self.skills["몽환삼단"]
+            skill["current_cd"] = skill["cooldown"]
+            h1, h2, h3 = roll("2d3")+3, roll("2d3")+3, roll("2d3")+3
+            total = h1 + h2 + h3
+            if is_critical: total = int(total * 1.5)
+            result = {"type": "attack", "damage": total, "silence": 2, "message": f"{self.name}의 몽환삼단! 3연속 공격과 함께 침묵을 부여합니다."}
+
+        elif action_name == "결심":
+            if getattr(self, "current_turn_count", 1) < 6:
+                return {"type": "log", "message": "결심은 6턴부터 사용할 수 있습니다."}
+            
+            skill = self.skills["결심"]
+            skill["current_cd"] = skill["cooldown"]
+            self.kyulsim_stack = 2
+            self.gain_salui(1)
+            result = {"type": "status", "message": f"{self.name}가 결심했습니다. 2회의 치명적인 일격을 준비합니다."}
+
+        # 특수 효과 추가
+        if bonus_fixed_dmg != 0: result["special_fixed_dmg"] = bonus_fixed_dmg
+        if is_critical: result["inflict_weaken"] = 1 # 결심 효과: 1턴간 피해 -25%
+
+        self.update_stats()
+        return result
