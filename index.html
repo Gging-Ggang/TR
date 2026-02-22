@@ -19,7 +19,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard-Regular', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
         
-        #game-container { flex: 1; display: grid; grid-template-columns: 340px 1fr 320px; gap: 4px; background: var(--border); overflow: hidden; }
+        #game-container { flex: 1; display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 4px; background: var(--border); overflow: hidden; }
         .side-panel { background: var(--panel); display: flex; flex-direction: column; padding: 25px; overflow-y: auto; -ms-overflow-style: none; scrollbar-width: none; position: relative; }
         .side-panel::-webkit-scrollbar { display: none; }
         
@@ -322,8 +322,15 @@
             document.getElementById('p2-name').innerText = p2_ui_data.name; document.getElementById('p2-class').innerText = p2_ui_data.class;
             renderSkills('p1', p1_ui_data); renderSkills('p2', p2_ui_data);
             refreshUI();
-            document.getElementById('curtain-p1').classList.remove('wipe');
-            document.getElementById('curtain-p2').classList.remove('wipe');
+            
+            // [수정] 프레임 분리를 통해 clip-path 애니메이션 트리거 보장
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.getElementById('curtain-p1').classList.add('wipe');
+                    document.getElementById('curtain-p2').classList.add('wipe');
+                });
+            });
+
             document.getElementById('overlay').style.display = 'none';
             addLog("BATTLE START", "turn-divider"); 
             playStartAnimations(combat);

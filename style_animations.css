@@ -4,11 +4,11 @@
     inset: 0;
     background: var(--panel);
     z-index: 1000;
-    transform-origin: bottom;
-    transition: transform 0.4s cubic-bezier(0.1, 1, 0.1, 1);
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.4s cubic-bezier(0.1, 1, 0.1, 1);
 }
 .sidebar-curtain.wipe {
-    transform: scaleY(0);
+    clip-path: inset(100% 0 0 0);
 }
 
 /* 로그 창 중앙 배경 UI (Indicators) */
@@ -144,10 +144,10 @@
     transition: clip-path 1.0s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-#action-curtain.reveal-p1 { clip-path: polygon(50% -150%, 305% 200%, 305% 200%); }
-#action-curtain-border.reveal-p1 { clip-path: polygon(50% -150%, 300% 200%, 300% 200%); }
-#action-curtain.reveal-p2 { clip-path: polygon(50% -150%, -205% 200%, -205% 200%); }
-#action-curtain-border.reveal-p2 { clip-path: polygon(50% -150%, -200% 200%, -200% 200%); }
+#action-curtain.reveal-p1, #action-curtain.reveal-p2 { clip-path: polygon(50% -150%, -205% 200%, -205% 200%); }
+#action-curtain-border.reveal-p1, #action-curtain-border.reveal-p2 { clip-path: polygon(50% -150%, -200% 200%, -200% 200%); }
+#action-curtain.pre-cover { clip-path: polygon(50% -150%, 305% 200%, 305% 200%); }
+#action-curtain-border.pre-cover { clip-path: polygon(50% -150%, 300% 200%, 300% 200%); }
 #action-curtain.cover { clip-path: polygon(50% -150%, -200% 200%, 300% 200%); }
 #action-curtain-border.cover { clip-path: polygon(50% -150%, -205% 200%, 305% 200%); }
 

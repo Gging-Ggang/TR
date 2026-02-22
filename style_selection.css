@@ -4,7 +4,14 @@
     inset: 0;
     overflow: hidden;
     z-index: 1000;
-    background: var(--panel); /* 배경색 복구 */
+    background: var(--panel); 
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.4s cubic-bezier(0.1, 1, 0.1, 1);
+    will-change: clip-path;
+}
+
+#curtain-p1.wipe, #curtain-p2.wipe {
+    clip-path: inset(100% 0 0 0);
 }
 
 /* 거대 회전 컨테이너 */
@@ -17,19 +24,18 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    transform: rotate(45deg);
+    transform: rotate(40deg);
     pointer-events: none;
-    gap: -30px; /* 줄 간격 밀착 */
     transition: opacity 0.3s ease;
 }
 
-/* 텍스처 행 (글자가 아닌 이미지가 들어갈 그릇) */
+/* 텍스처 행 */
 .texture-row {
     width: 100%;
-    height: 140px; /* 폰트 크기와 일치 */
+    height: 140px; 
     background-repeat: repeat-x;
     background-position: 0 0;
-    will-change: background-position; /* GPU 가속 강제 */
+    will-change: background-position;
     image-rendering: high-quality;
 }
 

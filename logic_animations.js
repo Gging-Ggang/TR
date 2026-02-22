@@ -145,6 +145,11 @@ function closeActionCurtain(combat) {
     const curtainBorder = document.getElementById('action-curtain-border');
     [curtain, curtainBorder].forEach(el => {
         if(!el) return;
+        // 오른쪽에서 덮기 위해 먼저 오른쪽으로 순간 이동
+        el.style.transition = 'none';
+        el.className = 'pre-cover';
+        void el.offsetHeight; // 강제 리플로우
+        // 다시 왼쪽으로 펼치며 덮기
         el.style.transition = 'clip-path 1.0s cubic-bezier(0.25, 1, 0.5, 1)';
         el.className = 'cover';
     });
